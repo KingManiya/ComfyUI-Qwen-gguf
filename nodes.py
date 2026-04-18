@@ -10,8 +10,6 @@ from .folder_registry import (
     system_prompt_options,
 )
 from .llama_cli import (
-    MAX_LLAMA_SEED,
-    MEMORY_MODES,
     build_command,
     run_llama_cli,
     split_extra_args,
@@ -79,7 +77,12 @@ class QwenGGUF:
                     "step": 512,
                     "tooltip": "llama.cpp context window size in tokens.",
                 }),
-                "memory_mode": (list(MEMORY_MODES), {
+                "memory_mode": ([
+                    "auto",
+                    "gpu_layers",
+                    "cpu_moe_layers",
+                    "gpu_and_cpu_moe_layers",
+                ], {
                     "default": "auto",
                     "tooltip": "auto passes no layer flags; other modes pass GPU layers, CPU MoE layers, or both.",
                     "advanced": True,
@@ -101,7 +104,7 @@ class QwenGGUF:
                 "seed": ("INT", {
                     "default": 1,
                     "min": -1,
-                    "max": MAX_LLAMA_SEED,
+                    "max": 2**32 - 1, # MAX_LLAMA_SEED
                     "tooltip": "Random seed used by llama.cpp. Use -1 for a random seed.",
                 }),
                 "timeout_seconds": ("INT", {

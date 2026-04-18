@@ -18,14 +18,6 @@ LLAMA_PERF_PREFIXES = (
     "llama_perf_context_print:",
     "common_perf_print:",
 )
-MAX_LLAMA_SEED = 2**32 - 1
-INTERRUPT_POLL_SECONDS = 0.1
-MEMORY_MODES = (
-    "auto",
-    "gpu_layers",
-    "cpu_moe_layers",
-    "gpu_and_cpu_moe_layers",
-)
 
 
 def tensor_to_temp_png(image) -> Path:
@@ -165,8 +157,8 @@ def run_llama_cli(
         raise RuntimeError(
             f"llama.cpp inference failed with exit code {result.returncode}:\n{stderr}"
         )
-    response, thinking = extract_thinking(result.stdout)
-    perf = extract_perf(result.stderr)
+    response, thinking = _extract_thinking(result.stdout)
+    perf = _extract_perf(result.stderr)
     return response, thinking, perf
 
 
@@ -194,12 +186,12 @@ def _communicate_with_interrupt(process: subprocess.Popen, timeout_seconds: int)
             _stop_process(process)
             raise TimeoutError(f"llama.cpp timed out after {timeout_seconds}s")
         try:
-            return process.communicate(timeout=min(INTERRUPT_POLL_SECONDS, remaining))
+            return process.communicate(timeout=min(0.1, remaining))
         except subprocess.TimeoutExpired:
             continue
 
 
-def extract_perf(stderr: str) -> str:
+def _extract_perf(stderr: str) -> str:
     lines = [
         line.strip() for line in str(stderr or "").splitlines()
         if any(prefix in line for prefix in LLAMA_PERF_PREFIXES)
@@ -207,7 +199,7 @@ def extract_perf(stderr: str) -> str:
     return "\n".join(lines)
 
 
-def extract_thinking(text: str) -> tuple[str, str]:
+def _extract_thinking(text: str) -> tuple[str, str]:
     text = str(text or "")
     thinking = ""
 
