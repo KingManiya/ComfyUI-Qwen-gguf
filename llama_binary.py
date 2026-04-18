@@ -4,7 +4,6 @@ import fnmatch
 import json
 import platform
 import shutil
-import time
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -22,6 +21,7 @@ class PlatformSpec:
     key: str
     executable: str
     asset_patterns: tuple[str, ...]
+    required_files: tuple[str, ...]
 
 
 WINDOWS_CUDA_13 = PlatformSpec(
@@ -29,7 +29,12 @@ WINDOWS_CUDA_13 = PlatformSpec(
     executable="llama-mtmd-cli.exe",
     asset_patterns=(
         "llama-*-bin-win-cuda-13*-x64.zip",
-        "cudart-llama-bin-win-cuda-13.1-x64.zip",
+        "cudart-llama-bin-win-cuda-13*-x64.zip",
+    ),
+    required_files=(
+        "llama-mtmd-cli.exe",
+        "ggml-cuda.dll",
+        "cudart64_13.dll",
     ),
 )
 
@@ -79,10 +84,6 @@ def _select_assets(release: dict, spec: PlatformSpec) -> list[dict]:
     return selected
 
 
-def _manifest_path(install_dir: Path) -> Path:
-    return install_dir / "manifest.json"
-
-
 def _find_executable(install_dir: Path, spec: PlatformSpec) -> Path | None:
     for path in install_dir.rglob(spec.executable):
         if path.is_file():
@@ -90,17 +91,23 @@ def _find_executable(install_dir: Path, spec: PlatformSpec) -> Path | None:
     return None
 
 
-def _existing_from_manifest(spec: PlatformSpec) -> Path | None:
+def _has_required_files(install_dir: Path, spec: PlatformSpec) -> bool:
+    for name in spec.required_files:
+        if not any(path.is_file() for path in install_dir.rglob(name)):
+            return False
+    return True
+
+
+def _is_complete_install(install_dir: Path, spec: PlatformSpec) -> bool:
+    return _find_executable(install_dir, spec) is not None and _has_required_files(install_dir, spec)
+
+
+def _existing_install(spec: PlatformSpec) -> Path | None:
     if not VENDOR_ROOT.exists():
         return None
-    for manifest in VENDOR_ROOT.glob(f"*/{spec.key}/manifest.json"):
-        try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        exe = Path(data.get("executable", ""))
-        if exe.is_file() and exe.name.lower() == spec.executable.lower():
-            return exe
+    for install_dir in VENDOR_ROOT.glob(f"*/{spec.key}"):
+        if _is_complete_install(install_dir, spec):
+            return _find_executable(install_dir, spec)
     return None
 
 
@@ -117,17 +124,18 @@ def _extract_assets(assets: list[dict], install_dir: Path) -> None:
 
 def ensure_llama_cli() -> Path:
     spec = _platform_spec()
-    existing = _existing_from_manifest(spec)
+    existing = _existing_install(spec)
     if existing is not None:
         return existing
 
     release = _json_get(RELEASE_API_URL)
     tag = release.get("tag_name") or "latest"
     install_dir = VENDOR_ROOT / tag / spec.key
-    manifest = _manifest_path(install_dir)
 
-    executable = _find_executable(install_dir, spec)
-    if executable is not None:
+    if _is_complete_install(install_dir, spec):
+        executable = _find_executable(install_dir, spec)
+        if executable is None:
+            raise RuntimeError(f"Completed install has no {spec.executable}: {install_dir}")
         return executable
 
     assets = _select_assets(release, spec)
@@ -139,18 +147,11 @@ def ensure_llama_cli() -> Path:
         raise RuntimeError(
             f"Downloaded llama.cpp assets but could not find {spec.executable} in {install_dir}"
         )
+    if not _has_required_files(install_dir, spec):
+        missing = [
+            name for name in spec.required_files
+            if not any(path.is_file() for path in install_dir.rglob(name))
+        ]
+        raise RuntimeError(f"Downloaded llama.cpp assets are incomplete; missing: {', '.join(missing)}")
 
-    manifest.write_text(
-        json.dumps(
-            {
-                "tag": tag,
-                "release_url": release.get("html_url", "https://github.com/ggml-org/llama.cpp/releases"),
-                "assets": [asset["name"] for asset in assets],
-                "executable": str(executable),
-                "installed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
     return executable

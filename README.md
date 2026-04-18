@@ -54,7 +54,7 @@ The node downloads both release archives:
 
 ```text
 llama-*-bin-win-cuda-13*-x64.zip
-cudart-llama-bin-win-cuda-13.1-x64.zip
+cudart-llama-bin-win-cuda-13*-x64.zip
 ```
 
 Recent llama.cpp releases may name the main Windows CUDA 13 binary with the
@@ -66,8 +66,10 @@ They are extracted into:
 ComfyUI/custom_nodes/ComfyUI-Qwen-gguf/vendor/llama.cpp/<release-tag>/win-x64-cuda13
 ```
 
-A `manifest.json` is written next to the extracted files, so later runs reuse the
-same binary instead of downloading again.
+Later runs reuse the same folder when the required files are present
+(`llama-mtmd-cli.exe`, `ggml-cuda.dll`, and `cudart64_13.dll`). If any required
+file is missing, the node treats the install as incomplete and downloads the
+archives again.
 
 Linux, macOS, CPU-only, and other CUDA builds are not auto-downloaded yet. The
 platform layer is kept isolated so those targets can be added cleanly later.

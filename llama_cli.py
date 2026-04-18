@@ -3,14 +3,19 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import signal
 import subprocess
 import tempfile
+import time
 from pathlib import Path
+
+import comfy.model_management
 
 
 THINK_BLOCK_RE = re.compile(r"<think[^>]*>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
 LLAMA_PERF_PREFIX = "llama_perf_context_print:"
 MAX_LLAMA_SEED = 2**32 - 1
+INTERRUPT_POLL_SECONDS = 0.1
 MEMORY_MODES = (
     "auto",
     "gpu_layers",
@@ -145,6 +150,7 @@ def run_llama_cli(
 ) -> tuple[str, str]:
     image_path = None
     prompt_path = None
+    process = None
     try:
         if image is not None:
             if mmproj_path is None:
@@ -172,15 +178,22 @@ def run_llama_cli(
             extra_args=extra_args,
         )
 
-        result = subprocess.run(
+        process = subprocess.Popen(
             command,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=timeout_seconds,
             shell=False,
+            creationflags=_subprocess_creationflags(),
         )
+        stdout, stderr = _communicate_with_interrupt(process, timeout_seconds)
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+    except BaseException:
+        if process is not None:
+            _stop_process(process)
+        raise
     finally:
         # Temp prompt/image files can be large in workflows that run many times,
         # so cleanup happens even when llama.cpp exits with an error.
@@ -195,6 +208,47 @@ def run_llama_cli(
         )
     perf = extract_perf(result.stderr)
     return result.stdout, perf
+
+
+def _stop_process(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        try:
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        except (OSError, ValueError):
+            process.terminate()
+    else:
+        process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=3)
+
+
+def _communicate_with_interrupt(process: subprocess.Popen, timeout_seconds: int) -> tuple[str, str]:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        if comfy.model_management.processing_interrupted():
+            _stop_process(process)
+            # Reset the global interrupt flag and raise the exact exception
+            # ComfyUI expects so the UI reports this as an interruption.
+            comfy.model_management.throw_exception_if_processing_interrupted()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _stop_process(process)
+            raise TimeoutError(f"llama.cpp timed out after {timeout_seconds}s")
+        try:
+            return process.communicate(timeout=min(INTERRUPT_POLL_SECONDS, remaining))
+        except subprocess.TimeoutExpired:
+            continue
+
+
+def _subprocess_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
 
 def extract_perf(stderr: str) -> str:
