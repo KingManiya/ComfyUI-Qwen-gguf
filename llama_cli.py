@@ -10,7 +10,7 @@ from pathlib import Path
 
 import comfy.model_management
 
-from .llama_binary import LlamaCliPaths
+from .llama_binary import ensure_llama_cli_paths
 
 
 THINK_BLOCK_RE = re.compile(r"<think[^>]*>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
@@ -61,7 +61,7 @@ def _write_prompt_file(system_prompt: str, prompt: str) -> Path:
     return _write_temp_text_file("qwen-gguf-prompt-", "\n\n".join(chunks))
 
 
-def _split_extra_args(extra_args: str) -> list[str]:
+def split_extra_args(extra_args: str) -> list[str]:
     if not extra_args or not extra_args.strip():
         return []
     parts = shlex.split(extra_args, posix=(os.name != "nt"))
@@ -69,11 +69,11 @@ def _split_extra_args(extra_args: str) -> list[str]:
 
 
 def build_command(
-    cli_path: Path,
     model_path: Path,
     mmproj_path: Path | None,
-    image_path: Path | None,
-    prompt_path: Path,
+    image,
+    system_prompt: str,
+    prompt: str,
     max_tokens: int,
     temperature: float,
     top_p: float,
@@ -84,10 +84,22 @@ def build_command(
     n_gpu_layers: int,
     n_cpu_moe_layers: int,
     seed: int,
-    extra_args: str = "",
-) -> list[str]:
+    extra_args: list[str] | None = None,
+) -> tuple[list[str], tuple[Path | None, ...]]:
+    cleanup_paths = []
+    cli_paths = ensure_llama_cli_paths()
+    image_path = None
+    if image is not None:
+        if mmproj_path is None:
+            raise ValueError("Image input requires a selected mmproj GGUF file.")
+        image_path = tensor_to_temp_png(image)
+        cleanup_paths.append(image_path)
+
+    prompt_path = _write_prompt_file(system_prompt, prompt)
+    cleanup_paths.append(prompt_path)
+
     command = [
-        str(cli_path),
+        str(cli_paths.multimodal if image_path else cli_paths.text),
         "-m", str(model_path),
         "-n", str(max_tokens),
         "--temp", str(temperature),
@@ -107,69 +119,22 @@ def build_command(
 
     command.extend(["-f", str(prompt_path)])
 
-    if mmproj_path is not None:
+    if image_path:
         command.extend(["--mmproj", str(mmproj_path)])
-    if image_path is not None:
         command.extend(["--image", str(image_path)])
 
-    command.extend(_split_extra_args(extra_args))
-    return command
+    if extra_args:
+        command.extend(extra_args)
+    return command, tuple(cleanup_paths)
 
 
 def run_llama_cli(
-    cli_paths: LlamaCliPaths,
-    model_path: Path,
-    mmproj_path: Path | None,
-    image,
-    system_prompt: str,
-    prompt: str,
-    max_tokens: int,
-    temperature: float,
-    top_p: float,
-    top_k: int,
-    repeat_penalty: float,
-    ctx_size: int,
-    memory_mode: str,
-    n_gpu_layers: int,
-    n_cpu_moe_layers: int,
-    seed: int,
+    command: list[str],
     timeout_seconds: int,
-    extra_args: str = "",
+    cleanup_paths: tuple[Path | None, ...] = (),
 ) -> tuple[str, str, str]:
-    image_path = None
-    prompt_path = None
     process = None
     try:
-        effective_mmproj_path = None
-        effective_cli_path = cli_paths.text
-        if image is not None:
-            if mmproj_path is None:
-                raise ValueError("Image input requires a selected mmproj GGUF file.")
-            effective_cli_path = cli_paths.multimodal
-            effective_mmproj_path = mmproj_path
-            image_path = tensor_to_temp_png(image)
-
-        prompt_path = _write_prompt_file(system_prompt, prompt)
-
-        command = build_command(
-            cli_path=effective_cli_path,
-            model_path=model_path,
-            mmproj_path=effective_mmproj_path,
-            image_path=image_path,
-            prompt_path=prompt_path,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            repeat_penalty=repeat_penalty,
-            ctx_size=ctx_size,
-            memory_mode=memory_mode,
-            n_gpu_layers=n_gpu_layers,
-            n_cpu_moe_layers=n_cpu_moe_layers,
-            seed=seed,
-            extra_args=extra_args,
-        )
-
         process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
@@ -191,8 +156,8 @@ def run_llama_cli(
     finally:
         # Temp prompt/image files can be large in workflows that run many times,
         # so cleanup happens even when llama.cpp exits with an error.
-        for path in (image_path, prompt_path):
-            if path is not None and path.exists():
+        for path in cleanup_paths:
+            if path and path.exists():
                 path.unlink()
 
     if result.returncode != 0:
