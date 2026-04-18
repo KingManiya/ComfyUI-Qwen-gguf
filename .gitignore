@@ -1,3 +1,6 @@
 .idea
 
 vendor
+__pycache__/
+*.py[cod]
+.pytest_cache/
