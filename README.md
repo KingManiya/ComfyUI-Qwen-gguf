@@ -125,8 +125,10 @@ Each top-level `.txt` file appears in the `system_prompt` dropdown. Choose
 | `top_k` | Top-K sampling cutoff. |
 | `repeat_penalty` | Penalty for repeated tokens. |
 | `ctx_size` | llama.cpp context size. |
-| `n_gpu_layers` | Layers offloaded to GPU. Use `0` for CPU. |
-| `seed` | Random seed. |
+| `memory_mode` | Advanced memory placement mode. `auto` passes no layer flags. |
+| `n_gpu_layers` | Used in GPU layer modes. Passes `--gpu-layers` / `-ngl`. |
+| `n_cpu_moe_layers` | Used in CPU MoE modes. Passes `--n-cpu-moe`. |
+| `seed` | Random seed. Use `-1` for a random seed. |
 | `enable_thinking` | Uses `/think` when enabled and `/no_think` when disabled. |
 | `timeout_seconds` | Maximum runtime before the subprocess is stopped. |
 | `image` | Optional ComfyUI image input. Uses the first image in a batch. |

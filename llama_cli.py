@@ -9,6 +9,13 @@ from pathlib import Path
 
 
 THINK_BLOCK_RE = re.compile(r"<think[^>]*>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
+MAX_LLAMA_SEED = 2**32 - 1
+MEMORY_MODES = (
+    "auto",
+    "gpu_layers",
+    "cpu_moe_layers",
+    "gpu_and_cpu_moe_layers",
+)
 
 
 def tensor_to_temp_png(image) -> Path:
@@ -51,6 +58,17 @@ def _split_extra_args(extra_args: str) -> list[str]:
     return [part.strip("\"'") for part in parts]
 
 
+def normalize_seed(seed: int) -> int:
+    # llama.cpp uses -1 as "random seed"; otherwise Windows builds parse the
+    # value as an unsigned 32-bit integer.
+    seed = int(seed)
+    if seed == -1:
+        return -1
+    if not 0 <= seed <= MAX_LLAMA_SEED:
+        raise ValueError(f"seed must be -1 or between 0 and {MAX_LLAMA_SEED}")
+    return seed
+
+
 def build_command(
     cli_path: Path,
     model_path: Path,
@@ -63,10 +81,17 @@ def build_command(
     top_k: int,
     repeat_penalty: float,
     ctx_size: int,
+    memory_mode: str,
     n_gpu_layers: int,
+    n_cpu_moe_layers: int,
     seed: int,
     extra_args: str = "",
 ) -> list[str]:
+    if memory_mode not in MEMORY_MODES:
+        raise ValueError(f"Unsupported memory_mode: {memory_mode}")
+    if memory_mode in {"cpu_moe_layers", "gpu_and_cpu_moe_layers"} and n_cpu_moe_layers < 1:
+        raise ValueError("n_cpu_moe_layers must be at least 1 when CPU MoE layers are enabled.")
+
     command = [
         str(cli_path),
         "-m", str(model_path),
@@ -77,9 +102,15 @@ def build_command(
         "--top-k", str(top_k),
         "--repeat-penalty", str(repeat_penalty),
         "-c", str(ctx_size),
-        "-ngl", str(n_gpu_layers),
-        "--seed", str(seed),
+        "--seed", str(normalize_seed(seed)),
     ]
+
+    # In auto mode llama.cpp receives neither flag and uses its own placement
+    # defaults. Other modes pass only the user-selected memory controls.
+    if memory_mode in {"gpu_layers", "gpu_and_cpu_moe_layers"}:
+        command.extend(["-ngl", str(n_gpu_layers)])
+    if memory_mode in {"cpu_moe_layers", "gpu_and_cpu_moe_layers"}:
+        command.extend(["--n-cpu-moe", str(n_cpu_moe_layers)])
 
     if mmproj_path is not None:
         command.extend(["--mmproj", str(mmproj_path)])
@@ -103,7 +134,9 @@ def run_llama_cli(
     top_k: int,
     repeat_penalty: float,
     ctx_size: int,
+    memory_mode: str,
     n_gpu_layers: int,
+    n_cpu_moe_layers: int,
     seed: int,
     enable_thinking: bool,
     timeout_seconds: int,
@@ -130,7 +163,9 @@ def run_llama_cli(
             top_k=top_k,
             repeat_penalty=repeat_penalty,
             ctx_size=ctx_size,
+            memory_mode=memory_mode,
             n_gpu_layers=n_gpu_layers,
+            n_cpu_moe_layers=n_cpu_moe_layers,
             seed=seed,
             extra_args=extra_args,
         )

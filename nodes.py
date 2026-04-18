@@ -10,7 +10,7 @@ from .folder_registry import (
     system_prompt_options,
 )
 from .llama_binary import ensure_llama_cli
-from .llama_cli import extract_thinking, run_llama_cli
+from .llama_cli import MAX_LLAMA_SEED, MEMORY_MODES, extract_thinking, run_llama_cli
 
 
 class QwenGGUF:
@@ -74,17 +74,30 @@ class QwenGGUF:
                     "step": 512,
                     "tooltip": "llama.cpp context window size in tokens.",
                 }),
+                "memory_mode": (list(MEMORY_MODES), {
+                    "default": "auto",
+                    "tooltip": "auto passes no layer flags; other modes pass GPU layers, CPU MoE layers, or both.",
+                    "advanced": True,
+                }),
                 "n_gpu_layers": ("INT", {
                     "default": 99,
                     "min": -1,
                     "max": 999,
-                    "tooltip": "Number of layers to offload to GPU. 0 runs on CPU.",
+                    "tooltip": "Used only in gpu_layers and gpu_and_cpu_moe_layers modes. Number of layers to offload to GPU.",
+                    "advanced": True,
+                }),
+                "n_cpu_moe_layers": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 999,
+                    "tooltip": "Used only in cpu_moe_layers and gpu_and_cpu_moe_layers modes. Keeps MoE weights of the first N layers on CPU.",
+                    "advanced": True,
                 }),
                 "seed": ("INT", {
                     "default": 1,
-                    "min": 0,
-                    "max": 0xffffffffffffffff,
-                    "tooltip": "Random seed used by llama.cpp.",
+                    "min": -1,
+                    "max": MAX_LLAMA_SEED,
+                    "tooltip": "Random seed used by llama.cpp. Use -1 for a random seed.",
                 }),
                 "enable_thinking": ("BOOLEAN", {
                     "default": False,
@@ -131,7 +144,9 @@ class QwenGGUF:
         top_k: int,
         repeat_penalty: float,
         ctx_size: int,
+        memory_mode: str,
         n_gpu_layers: int,
+        n_cpu_moe_layers: int,
         seed: int,
         enable_thinking: bool,
         timeout_seconds: int,
@@ -159,7 +174,9 @@ class QwenGGUF:
             top_k=top_k,
             repeat_penalty=repeat_penalty,
             ctx_size=ctx_size,
+            memory_mode=memory_mode,
             n_gpu_layers=n_gpu_layers,
+            n_cpu_moe_layers=n_cpu_moe_layers,
             seed=seed,
             enable_thinking=enable_thinking,
             timeout_seconds=timeout_seconds,
