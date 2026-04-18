@@ -86,11 +86,6 @@ def build_command(
     seed: int,
     extra_args: str = "",
 ) -> list[str]:
-    if memory_mode not in MEMORY_MODES:
-        raise ValueError(f"Unsupported memory_mode: {memory_mode}")
-    if memory_mode in {"cpu_moe_layers", "gpu_and_cpu_moe_layers"} and n_cpu_moe_layers < 1:
-        raise ValueError("n_cpu_moe_layers must be at least 1 when CPU MoE layers are enabled.")
-
     command = [
         str(cli_path),
         "-m", str(model_path),
@@ -203,7 +198,7 @@ def run_llama_cli(
     if result.returncode != 0:
         stderr = result.stderr.strip()
         raise RuntimeError(
-            f"llama.cpp inference failed with exit code {result.returncode}:\n{stderr[-2000:]}"
+            f"llama.cpp inference failed with exit code {result.returncode}:\n{stderr}"
         )
     response, thinking = extract_thinking(result.stdout)
     perf = extract_perf(result.stderr)
