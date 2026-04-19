@@ -71,13 +71,13 @@ def full_mmproj_path(name: str) -> Path | None:
     return Path(path)
 
 
-def load_system_prompt(name: str) -> str:
+def full_system_prompt_path(name: str) -> Path | None:
     if name == NO_SYSTEM_PROMPT:
-        return ""
+        return None
     path = folder_paths.get_full_path(PROMPT_FOLDER, name)
     if path is None:
         raise FileNotFoundError(f"System prompt preset not found: {name}")
-    return Path(path).read_text(encoding="utf-8").strip()
+    return Path(path)
 
 
 register_folders()

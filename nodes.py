@@ -4,7 +4,7 @@ from .folder_registry import (
     NO_MMPROJ,
     full_mmproj_path,
     full_model_path,
-    load_system_prompt,
+    full_system_prompt_path,
     mmproj_options,
     model_options,
     system_prompt_options,
@@ -38,7 +38,7 @@ class QwenGGUF:
                     "tooltip": "User prompt sent to the Qwen model.",
                 }),
                 "max_tokens": ("INT", {
-                    "default": 1024,
+                    "default": 2048,
                     "min": 1,
                     "max": 32768,
                     "tooltip": "Maximum number of tokens to generate.",
@@ -114,7 +114,7 @@ class QwenGGUF:
                     "tooltip": "Maximum time to wait before generation is stopped.",
                 }),
                 "reasoning": (["auto", "on", "off"], {
-                    "default": "auto",
+                    "default": "off",
                     "tooltip": "Reasoning output mode.",
                 }),
             },
@@ -164,14 +164,14 @@ class QwenGGUF:
     ):
         model_path = full_model_path(model)
         mmproj_path = full_mmproj_path(mmproj)
-        system_prompt_text = load_system_prompt(system_prompt)
+        system_prompt_path = full_system_prompt_path(system_prompt)
         parsed_extra_args = split_extra_args(extra_args)
 
         command, cleanup_paths = build_command(
             model_path=model_path,
             mmproj_path=mmproj_path,
+            system_prompt_path=system_prompt_path,
             image=image,
-            system_prompt=system_prompt_text,
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=temperature,

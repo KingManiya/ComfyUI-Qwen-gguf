@@ -48,13 +48,8 @@ def _write_temp_text_file(prefix: str, text: str) -> Path:
     return text_path
 
 
-def _write_prompt_file(system_prompt: str, prompt: str) -> Path:
-    chunks = []
-    if system_prompt:
-        chunks.append(system_prompt.strip())
-    chunks.append(prompt.strip() + PROMPT_PADDING)
-
-    return _write_temp_text_file("qwen-gguf-prompt-", "\n\n".join(chunks))
+def _write_prompt_file(prompt: str) -> Path:
+    return _write_temp_text_file("qwen-gguf-prompt-", prompt.strip() + PROMPT_PADDING)
 
 
 def split_extra_args(extra_args: str) -> list[str]:
@@ -67,8 +62,8 @@ def split_extra_args(extra_args: str) -> list[str]:
 def build_command(
     model_path: Path,
     mmproj_path: Path | None,
+    system_prompt_path: Path | None,
     image,
-    system_prompt: str,
     prompt: str,
     max_tokens: int,
     temperature: float,
@@ -92,7 +87,7 @@ def build_command(
         image_path = tensor_to_temp_png(image)
         cleanup_paths.append(image_path)
 
-    prompt_path = _write_prompt_file(system_prompt, prompt)
+    prompt_path = _write_prompt_file(prompt)
     cleanup_paths.append(prompt_path)
 
     command = [
@@ -115,6 +110,9 @@ def build_command(
         command.extend(["-ngl", str(n_gpu_layers)])
     if memory_mode in {"cpu_moe_layers", "gpu_and_cpu_moe_layers"}:
         command.extend(["--n-cpu-moe", str(n_cpu_moe_layers)])
+
+    if system_prompt_path is not None:
+        command.extend(["-sysf", str(system_prompt_path)])
 
     command.extend(["-f", str(prompt_path)])
 
@@ -145,8 +143,6 @@ def run_llama_cli(
             shell=False,
         )
         stdout, stderr = _communicate_with_interrupt(process, timeout_seconds)
-        print(stdout)
-        print(stderr)
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
     except BaseException:
         if process is not None:

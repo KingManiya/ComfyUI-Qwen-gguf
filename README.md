@@ -34,7 +34,7 @@ For image workflows, use a matching `mmproj` file from the same model family.
 ### ComfyUI Manager
 
 Open ComfyUI Manager, choose `Install Custom Nodes`, search for
-`ComfyUI-Qwen-gguf` or `Qwen GGUF`, install it, then restart ComfyUI.
+`Qwen GGUF`, install it, then restart ComfyUI.
 
 ### Manual Git Clone
 
