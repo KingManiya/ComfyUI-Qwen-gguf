@@ -10,7 +10,7 @@ This node is intentionally small: it discovers local `.gguf` models from
 
 - Qwen text generation with GGUF models
 - Optional image input through llama.cpp multimodal support
-- Separate `RESPONSE` and `THINKING` outputs
+- Separate `RESPONSE` and `REASONING` outputs
 - System prompt presets from text files
 - Recursive model discovery from `ComfyUI/models/LLM`
 - Automatic llama.cpp binary download for Windows x64 CUDA 13
@@ -141,8 +141,8 @@ Every input includes an in-node tooltip.
 
 | Output | Description |
 | --- | --- |
-| `RESPONSE` | Final model response with Qwen thinking blocks removed. |
-| `THINKING` | Extracted reasoning when present in model output. |
+| `RESPONSE` | Final model response with reasoning blocks removed. |
+| `REASONING` | Extracted reasoning when present in model output. |
 | `PERF` | Parsed llama.cpp prompt and generation speed, for example `[ Prompt: 80.0 t/s | Generation: 76.6 t/s ]`. |
 
 Both outputs include ComfyUI output tooltips.

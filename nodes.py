@@ -115,7 +115,7 @@ class QwenGGUF:
                 }),
                 "reasoning": (["auto", "on", "off"], {
                     "default": "auto",
-                    "tooltip": "llama.cpp reasoning/thinking mode.",
+                    "tooltip": "llama.cpp reasoning mode.",
                 }),
             },
             "optional": {
@@ -131,9 +131,9 @@ class QwenGGUF:
         }
 
     RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("RESPONSE", "THINKING", "PERF")
+    RETURN_NAMES = ("RESPONSE", "REASONING", "PERF")
     OUTPUT_TOOLTIPS = (
-        "Final model response with Qwen thinking blocks removed.",
+        "Final model response with reasoning blocks removed.",
         "Extracted reasoning when present in model output.",
         "llama.cpp prompt and generation speed.",
     )
@@ -186,12 +186,12 @@ class QwenGGUF:
             reasoning=reasoning,
             extra_args=parsed_extra_args,
         )
-        response, thinking, perf = run_llama_cli(
+        response, reasoning_text, perf = run_llama_cli(
             command=command,
             timeout_seconds=timeout_seconds,
             cleanup_paths=cleanup_paths,
         )
-        return (response, thinking, perf)
+        return (response, reasoning_text, perf)
 
 
 NODE_CLASS_MAPPINGS = {"QwenGGUF": QwenGGUF}
