@@ -11,7 +11,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 
-RELEASE_API_URL = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+LLAMA_CPP_RELEASE_TAG = "b8840"
+RELEASE_API_URL = f"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{LLAMA_CPP_RELEASE_TAG}"
 PACKAGE_ROOT = Path(__file__).resolve().parent
 VENDOR_ROOT = PACKAGE_ROOT / "vendor" / "llama.cpp"
 
@@ -141,7 +142,7 @@ def ensure_llama_cli_paths() -> LlamaCliPaths:
         return existing
 
     release = _json_get(RELEASE_API_URL)
-    tag = release.get("tag_name") or "latest"
+    tag = release.get("tag_name") or LLAMA_CPP_RELEASE_TAG
     install_dir = VENDOR_ROOT / tag / spec.key
 
     if _is_complete_install(install_dir, spec):
