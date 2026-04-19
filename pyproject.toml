@@ -1,7 +1,7 @@
 [project]
-name = "qwen-gguf"
-description = "Run Qwen GGUF models in ComfyUI through llama.cpp release binaries."
-version = "0.1.0"
+name = "ComfyUI-Qwen-gguf"
+description = "Run Qwen 3VL/3.5/3.6 GGUF models in ComfyUI through llama.cpp release binaries."
+version = "0.2.0"
 license = {file = "LICENSE"}
 dependencies = ["numpy", "Pillow"]
 

@@ -114,6 +114,8 @@ def build_command(
     if image_path:
         command.extend(["--mmproj", str(mmproj_path)])
         command.extend(["--image", str(image_path)])
+    else:
+        command.extend(['--single-turn', '--no-display-prompt', '--no-conversation'])
 
     if extra_args:
         command.extend(extra_args)
@@ -218,7 +220,7 @@ def _extract_thinking(text: str) -> tuple[str, str]:
         thinking = after.strip()
         text = before.strip()
 
-    for token in ("<|im_end|>", "<|im_start|>", "<|endoftext|>"):
+    for token in ("<|im_end|>", "<|im_start|>", "<|endoftext|>", " [end of text]"):
         text = text.replace(token, "")
 
     response = text.strip()

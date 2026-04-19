@@ -134,7 +134,7 @@ class QwenGGUF:
         "llama.cpp llama_perf_context_print lines.",
     )
     FUNCTION = "generate"
-    CATEGORY = "Qwen/GGUF"
+    CATEGORY = "Qwen GGUF"
     TITLE = "Qwen GGUF (llama.cpp)"
 
     def generate(

@@ -1,6 +1,6 @@
 # ComfyUI Qwen GGUF
 
-Run Qwen GGUF models inside ComfyUI through official llama.cpp release binaries.
+Run Qwen 3VL/3.5/3.6 GGUF models inside ComfyUI through official llama.cpp release binaries.
 
 This node is intentionally small: it discovers local `.gguf` models from
 `ComfyUI/models/LLM`, downloads the llama.cpp CLI binary on first use, and calls
@@ -27,7 +27,7 @@ ComfyUI/custom_nodes/ComfyUI-Qwen-gguf
 Restart ComfyUI. The node appears under:
 
 ```text
-Qwen/GGUF -> Qwen GGUF (llama.cpp)
+Qwen GGUF -> Qwen GGUF (llama.cpp)
 ```
 
 No Python package install is required for the basic node. ComfyUI already ships
