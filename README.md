@@ -1,27 +1,47 @@
 # ComfyUI Qwen GGUF
 
-Run Qwen 3VL/3.5/3.6 GGUF models inside ComfyUI through official llama.cpp release binaries.
+Run Qwen3-VL, Qwen3.5, and Qwen3.6 GGUF models in ComfyUI with llama.cpp.
 
-This node is intentionally small: it discovers local `.gguf` models from
-`ComfyUI/models/LLM`, downloads the llama.cpp CLI binary on first use, and calls
-`llama-cli.exe` as a subprocess.
+This extension adds a simple Qwen node for text and image workflows. It uses
+llama.cpp behind the scenes, discovers local GGUF models from
+`ComfyUI/models/LLM`, and keeps the ComfyUI workflow focused on the settings
+you usually need during generation.
 
 ## Features
 
 - Qwen text generation with GGUF models
-- Optional image input through llama.cpp multimodal support
+- Optional image input for supported vision models
 - Separate `RESPONSE` and `REASONING` outputs
 - System prompt presets from text files
 - Recursive model discovery from `ComfyUI/models/LLM`
-- Automatic llama.cpp binary download for Windows x64 CUDA 13
-- Advanced escape hatch for extra llama.cpp CLI flags
+- Automatic llama.cpp setup on supported Windows systems
+- Advanced llama.cpp options for users who need them
+
+## Supported Models
+
+The node is intended for GGUF versions of these Qwen model families:
+
+- Qwen3-VL: `Qwen3-VL-2B`, `Qwen3-VL-4B`, `Qwen3-VL-8B`,
+  `Qwen3-VL-30B-A3B`, `Qwen3-VL-32B`, `Qwen3-VL-235B-A22B`
+- Qwen3.5: `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`,
+  `Qwen3.5-27B`, `Qwen3.5-35B-A3B`, `Qwen3.5-122B-A10B`
+- Qwen3.6: `Qwen3.6-35B-A3B`
+
+For image workflows, use a matching `mmproj` file from the same model family.
 
 ## Installation
 
-Clone or copy this folder into your ComfyUI custom nodes directory:
+### ComfyUI Manager
+
+Open ComfyUI Manager, choose `Install Custom Nodes`, search for
+`ComfyUI-Qwen-gguf` or `Qwen GGUF`, install it, then restart ComfyUI.
+
+### Manual Git Clone
+
+Open a terminal in `ComfyUI/custom_nodes` and run:
 
 ```bash
-ComfyUI/custom_nodes/ComfyUI-Qwen-gguf
+git clone https://github.com/KingManiya/ComfyUI-Qwen-gguf.git
 ```
 
 Restart ComfyUI. The node appears under:
@@ -34,44 +54,21 @@ No Python package install is required for the basic node. ComfyUI already ships
 with the runtime pieces used here. Pillow and NumPy are used when an image input
 is connected.
 
-## llama.cpp Auto Download
+## llama.cpp
 
-On the first node execution, the extension downloads official llama.cpp release
-assets from:
+The node uses official llama.cpp release binaries. On supported systems, the
+required llama.cpp files are prepared automatically the first time you run the
+node.
 
-```text
-https://github.com/ggml-org/llama.cpp/releases
-```
-
-For v1, automatic download supports:
+Current automatic setup target:
 
 ```text
 Windows x64 + CUDA 13
 ```
 
-The node downloads both release archives:
+Other platforms are not set up automatically yet.
 
-```text
-llama-*-bin-win-cuda-13*-x64.zip
-cudart-llama-bin-win-cuda-13*-x64.zip
-```
-
-Recent llama.cpp releases may name the main Windows CUDA 13 binary with the
-exact CUDA runtime version, for example `llama-b8838-bin-win-cuda-13.1-x64.zip`.
-
-They are extracted into:
-
-```text
-ComfyUI/custom_nodes/ComfyUI-Qwen-gguf/vendor/llama.cpp/<release-tag>/win-x64-cuda13
-```
-
-Later runs reuse the same folder when the required files are present
-(`llama-cli.exe`, `ggml-cuda.dll`, and `cudart64_13.dll`). If any required
-file is missing, the node treats the install as incomplete and downloads the
-archives again.
-
-Linux, macOS, CPU-only, and other CUDA builds are not auto-downloaded yet. The
-platform layer is kept isolated so those targets can be added cleanly later.
+The extension downloads llama.cpp only. It does not download Qwen model weights.
 
 ## Model Placement
 
@@ -88,12 +85,11 @@ ComfyUI/models/LLM/My-Qwen-Model/model-q4_k_m.gguf
 ComfyUI/models/LLM/My-Qwen-Model/mmproj-BF16.gguf
 ```
 
-The `model` dropdown shows recursive `.gguf` files, excluding files with
-`mmproj` in the filename. The `mmproj` dropdown shows `none` plus recursive
-`.gguf` files with `mmproj` in the filename.
+The `model` dropdown shows model `.gguf` files. The `mmproj` dropdown shows
+vision projector files and `none`.
 
-The node downloads llama.cpp binaries only. It does not download Qwen model
-weights.
+For image workflows, choose the `mmproj` file that belongs to the selected
+model. The node uses only the first image from a ComfyUI image batch.
 
 ## System Prompt Presets
 
@@ -110,7 +106,25 @@ ComfyUI/models/LLM/prompts/captioner.txt
 ```
 
 Each top-level `.txt` file appears in the `system_prompt` dropdown. Choose
-`None` to run without a system prompt.
+`none` to run without a system prompt.
+
+## Recommended Settings
+
+These values are based on official Qwen recommendations and mapped to the
+parameters available in this node.
+
+| Model family / use case | `reasoning` | `temperature` | `top_p` | `top_k` | `repeat_penalty` |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Qwen3-VL Instruct | `off` | 0.7 | 0.8 | 20 | 1.0 |
+| Qwen3-VL Thinking | `on` | 0.6 | 0.95 | 20 | 1.0 |
+| Qwen3.5 / Qwen3.6 thinking, general tasks | `on` | 1.0 | 0.95 | 20 | 1.0 |
+| Qwen3.5 / Qwen3.6 thinking, precise coding | `on` | 0.6 | 0.95 | 20 | 1.0 |
+| Qwen3.5 / Qwen3.6 instruct, general tasks | `off` | 0.7 | 0.8 | 20 | 1.0 |
+| Qwen3.5 / Qwen3.6 instruct, reasoning tasks | `off` | 1.0 | 1.0 | 40 | 1.0 |
+
+Some Qwen recommendations also mention `min_p` and `presence_penalty`. They are
+not regular node inputs yet. Leave `extra_args` empty unless you already know
+which additional llama.cpp options your model needs.
 
 ## Node Inputs
 
@@ -118,22 +132,22 @@ Each top-level `.txt` file appears in the `system_prompt` dropdown. Choose
 | --- | --- |
 | `model` | GGUF model file from `ComfyUI/models/LLM`. |
 | `mmproj` | Vision projector GGUF. Required when using image input. |
-| `system_prompt` | Prompt preset from `models/LLM/prompts`, or `None`. |
+| `system_prompt` | Prompt preset from `models/LLM/prompts`, or `none`. |
 | `prompt` | User prompt sent to the model. |
 | `max_tokens` | Maximum generated tokens. |
 | `temperature` | Sampling temperature. Lower values are more deterministic. |
 | `top_p` | Nucleus sampling threshold. |
 | `top_k` | Top-K sampling cutoff. |
 | `repeat_penalty` | Penalty for repeated tokens. |
-| `ctx_size` | llama.cpp context size. |
-| `memory_mode` | Advanced memory placement mode. `auto` passes no layer flags. |
-| `n_gpu_layers` | Used in GPU layer modes. Passes `--gpu-layers` / `-ngl`. |
-| `n_cpu_moe_layers` | Used in CPU MoE modes. Passes `--n-cpu-moe`. |
+| `ctx_size` | Context window size. Larger values use more memory. |
+| `memory_mode` | Advanced memory placement mode: `auto`, `gpu_layers`, `cpu_moe_layers`, or `gpu_and_cpu_moe_layers`. |
+| `n_gpu_layers` | Used only in `gpu_layers` and `gpu_and_cpu_moe_layers` modes. |
+| `n_cpu_moe_layers` | Used only in `cpu_moe_layers` and `gpu_and_cpu_moe_layers` modes. |
 | `seed` | Random seed. Use `-1` for a random seed. |
-| `timeout_seconds` | Maximum runtime before the subprocess is stopped. |
-| `reasoning` | llama.cpp reasoning mode: `auto`, `on`, or `off`. |
+| `timeout_seconds` | Maximum runtime before generation is stopped. |
+| `reasoning` | Reasoning output mode: `auto`, `on`, or `off`. |
 | `image` | Optional ComfyUI image input. Uses the first image in a batch. |
-| `extra_args` | Advanced llama.cpp CLI flags appended to the command. |
+| `extra_args` | Optional advanced llama.cpp parameters. Leave empty for normal use. |
 
 Every input includes an in-node tooltip.
 
@@ -143,18 +157,7 @@ Every input includes an in-node tooltip.
 | --- | --- |
 | `RESPONSE` | Final model response with reasoning blocks removed. |
 | `REASONING` | Extracted reasoning when present in model output. |
-| `PERF` | Parsed llama.cpp prompt and generation speed, for example `[ Prompt: 80.0 t/s | Generation: 76.6 t/s ]`. |
-
-Both outputs include ComfyUI output tooltips.
-
-## Image Input and mmproj
-
-For image workflows, connect an `IMAGE` input and choose the matching `mmproj`
-file. The node saves the first image in the batch as a temporary PNG and passes
-it to llama.cpp with `--image`.
-
-The node uses `llama-cli.exe` for both text-only and image workflows. It passes
-`--mmproj` only when an image is connected.
+| `PERF` | Prompt and generation speed reported by llama.cpp. |
 
 ## Troubleshooting
 
@@ -173,20 +176,36 @@ Then refresh or restart ComfyUI.
 Make sure `mmproj` is not set to `none` and that the projector belongs to the
 same model family as the selected GGUF model.
 
-### Download fails
+### llama.cpp setup fails
 
-Check your internet connection and GitHub access. You can delete the incomplete
-folder under `vendor/llama.cpp` and run the node again.
+Check your internet connection and GitHub access, then run the node again.
 
 ### Unsupported platform
 
-Automatic binary download currently supports Windows x64 CUDA 13 only. Other
-platforms need a future platform mapping entry.
+Automatic llama.cpp setup currently supports Windows x64 CUDA 13 only.
 
-### llama.cpp errors
+### Out of memory
 
-Use `extra_args` only for flags supported by your downloaded llama.cpp build.
-If generation times out, increase `timeout_seconds` or lower `max_tokens`.
+Reduce `ctx_size` first. The context window reserves memory for the model's
+working context, so a large value can use a lot of memory even when the current
+prompt is short.
+
+If memory is still tight, use a smaller GGUF model, a smaller quant, or adjust
+the advanced memory placement settings.
+
+### Generation takes too long
+
+Try lowering `max_tokens`, reducing `ctx_size`, using a smaller GGUF model, or
+increasing `timeout_seconds`.
+
+Use `extra_args` only if you already know which llama.cpp options your setup
+needs.
+
+### Response is empty or cut off
+
+Increase `max_tokens`. This is especially important when `reasoning` is set to
+`on` or `auto`, because the model can spend part of the token budget on
+reasoning before it reaches the final answer.
 
 ## Credits
 

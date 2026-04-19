@@ -8,7 +8,7 @@ import folder_paths
 
 LLM_FOLDER = "qwen_gguf_llm"
 PROMPT_FOLDER = "qwen_gguf_prompts"
-NO_SYSTEM_PROMPT = "None"
+NO_SYSTEM_PROMPT = "none"
 NO_MMPROJ = "none"
 NO_MODELS_FOUND = "No GGUF models found"
 

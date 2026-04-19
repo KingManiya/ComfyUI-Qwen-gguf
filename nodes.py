@@ -29,7 +29,7 @@ class QwenGGUF:
                     "tooltip": "Vision projector GGUF. Required when an image is connected.",
                 }),
                 "system_prompt": (system_prompt_options(), {
-                    "tooltip": "System prompt preset from ComfyUI/models/LLM/prompts, or None.",
+                    "tooltip": "System prompt preset from ComfyUI/models/LLM/prompts, or none.",
                 }),
                 "prompt": ("STRING", {
                     "default": "Describe this image in detail.",
@@ -75,7 +75,7 @@ class QwenGGUF:
                     "min": 512,
                     "max": 131072,
                     "step": 512,
-                    "tooltip": "llama.cpp context window size in tokens.",
+                    "tooltip": "Context window size in tokens.",
                 }),
                 "memory_mode": ([
                     "auto",
@@ -84,48 +84,48 @@ class QwenGGUF:
                     "gpu_and_cpu_moe_layers",
                 ], {
                     "default": "auto",
-                    "tooltip": "auto passes no layer flags; other modes pass GPU layers, CPU MoE layers, or both.",
+                    "tooltip": "Advanced memory placement mode: auto, gpu_layers, cpu_moe_layers, or gpu_and_cpu_moe_layers.",
                     "advanced": True,
                 }),
                 "n_gpu_layers": ("INT", {
                     "default": 99,
                     "min": -1,
                     "max": 999,
-                    "tooltip": "Used only in gpu_layers and gpu_and_cpu_moe_layers modes. Number of layers to offload to GPU.",
+                    "tooltip": "Used only in gpu_layers and gpu_and_cpu_moe_layers modes. Number of model layers to place on the GPU.",
                     "advanced": True,
                 }),
                 "n_cpu_moe_layers": ("INT", {
                     "default": 1,
                     "min": 1,
                     "max": 999,
-                    "tooltip": "Used only in cpu_moe_layers and gpu_and_cpu_moe_layers modes. Keeps MoE weights of the first N layers on CPU.",
+                    "tooltip": "Used only in cpu_moe_layers and gpu_and_cpu_moe_layers modes. Number of MoE layers to keep on the CPU.",
                     "advanced": True,
                 }),
                 "seed": ("INT", {
                     "default": 1,
                     "min": -1,
                     "max": 2**32 - 1, # MAX_LLAMA_SEED
-                    "tooltip": "Random seed used by llama.cpp. Use -1 for a random seed.",
+                    "tooltip": "Random seed. Use -1 for a random seed.",
                 }),
                 "timeout_seconds": ("INT", {
                     "default": 300,
                     "min": 10,
                     "max": 3600,
-                    "tooltip": "Maximum time to wait for llama.cpp before failing.",
+                    "tooltip": "Maximum time to wait before generation is stopped.",
                 }),
                 "reasoning": (["auto", "on", "off"], {
                     "default": "auto",
-                    "tooltip": "llama.cpp reasoning mode.",
+                    "tooltip": "Reasoning output mode.",
                 }),
             },
             "optional": {
                 "image": ("IMAGE", {
-                    "tooltip": "Optional ComfyUI image input. The first image in the batch is sent to llama.cpp.",
+                    "tooltip": "Optional ComfyUI image input. Uses the first image in the batch.",
                 }),
                 "extra_args": ("STRING", {
                     "default": "",
                     "multiline": False,
-                    "tooltip": "Advanced raw llama.cpp CLI flags appended to the command.",
+                    "tooltip": "Optional advanced llama.cpp parameters. Leave empty for normal use.",
                 }),
             },
         }
