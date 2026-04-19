@@ -113,6 +113,10 @@ class QwenGGUF:
                     "max": 3600,
                     "tooltip": "Maximum time to wait for llama.cpp before failing.",
                 }),
+                "reasoning": (["auto", "on", "off"], {
+                    "default": "auto",
+                    "tooltip": "llama.cpp reasoning/thinking mode.",
+                }),
             },
             "optional": {
                 "image": ("IMAGE", {
@@ -154,6 +158,7 @@ class QwenGGUF:
         n_cpu_moe_layers: int,
         seed: int,
         timeout_seconds: int,
+        reasoning: str,
         image=None,
         extra_args: str = "",
     ):
@@ -178,6 +183,7 @@ class QwenGGUF:
             n_gpu_layers=n_gpu_layers,
             n_cpu_moe_layers=n_cpu_moe_layers,
             seed=seed,
+            reasoning=reasoning,
             extra_args=parsed_extra_args,
         )
         response, thinking, perf = run_llama_cli(

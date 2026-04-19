@@ -4,7 +4,7 @@ Run Qwen 3VL/3.5/3.6 GGUF models inside ComfyUI through official llama.cpp relea
 
 This node is intentionally small: it discovers local `.gguf` models from
 `ComfyUI/models/LLM`, downloads the llama.cpp CLI binary on first use, and calls
-`llama-mtmd-cli` as a subprocess.
+`llama-cli.exe` as a subprocess.
 
 ## Features
 
@@ -66,7 +66,7 @@ ComfyUI/custom_nodes/ComfyUI-Qwen-gguf/vendor/llama.cpp/<release-tag>/win-x64-cu
 ```
 
 Later runs reuse the same folder when the required files are present
-(`llama-mtmd-cli.exe`, `ggml-cuda.dll`, and `cudart64_13.dll`). If any required
+(`llama-cli.exe`, `ggml-cuda.dll`, and `cudart64_13.dll`). If any required
 file is missing, the node treats the install as incomplete and downloads the
 archives again.
 
@@ -131,6 +131,7 @@ Each top-level `.txt` file appears in the `system_prompt` dropdown. Choose
 | `n_cpu_moe_layers` | Used in CPU MoE modes. Passes `--n-cpu-moe`. |
 | `seed` | Random seed. Use `-1` for a random seed. |
 | `timeout_seconds` | Maximum runtime before the subprocess is stopped. |
+| `reasoning` | llama.cpp reasoning mode: `auto`, `on`, or `off`. |
 | `image` | Optional ComfyUI image input. Uses the first image in a batch. |
 | `extra_args` | Advanced llama.cpp CLI flags appended to the command. |
 
@@ -152,9 +153,8 @@ For image workflows, connect an `IMAGE` input and choose the matching `mmproj`
 file. The node saves the first image in the batch as a temporary PNG and passes
 it to llama.cpp with `--image`.
 
-If no image is connected, the node runs through `llama-completion` as text-only
-and does not pass `--mmproj`, even when a projector is selected in the dropdown.
-Image workflows run through `llama-mtmd-cli`, where `--mmproj` is required.
+The node uses `llama-cli.exe` for both text-only and image workflows. It passes
+`--mmproj` only when an image is connected.
 
 ## Troubleshooting
 

@@ -76,6 +76,7 @@ def build_command(
     n_gpu_layers: int,
     n_cpu_moe_layers: int,
     seed: int,
+    reasoning: str,
     extra_args: list[str] | None = None,
 ) -> tuple[list[str], tuple[Path | None, ...]]:
     cleanup_paths = []
@@ -91,7 +92,7 @@ def build_command(
     cleanup_paths.append(prompt_path)
 
     command = [
-        str(cli_paths.multimodal if image_path else cli_paths.text),
+        str(cli_paths.cli),
         "-m", str(model_path),
         "-n", str(max_tokens),
         "--temp", str(temperature),
@@ -100,6 +101,8 @@ def build_command(
         "--repeat-penalty", str(repeat_penalty),
         "-c", str(ctx_size),
         "--seed", str(seed),
+        "--single-turn",
+        "--reasoning", reasoning,
     ]
 
     # In auto mode llama.cpp receives neither flag and uses its own placement
@@ -114,8 +117,6 @@ def build_command(
     if image_path:
         command.extend(["--mmproj", str(mmproj_path)])
         command.extend(["--image", str(image_path)])
-    else:
-        command.extend(['--single-turn', '--no-display-prompt', '--no-conversation'])
 
     if extra_args:
         command.extend(extra_args)

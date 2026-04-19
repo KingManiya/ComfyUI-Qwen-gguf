@@ -19,29 +19,25 @@ VENDOR_ROOT = PACKAGE_ROOT / "vendor" / "llama.cpp"
 @dataclass(frozen=True)
 class PlatformSpec:
     key: str
-    text_executable: str
-    multimodal_executable: str
+    cli_executable: str
     asset_patterns: tuple[str, ...]
     required_files: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class LlamaCliPaths:
-    text: Path
-    multimodal: Path
+    cli: Path
 
 
 WINDOWS_CUDA_13 = PlatformSpec(
     key="win-x64-cuda13",
-    text_executable="llama-completion.exe",
-    multimodal_executable="llama-mtmd-cli.exe",
+    cli_executable="llama-cli.exe",
     asset_patterns=(
         "llama-*-bin-win-cuda-13*-x64.zip",
         "cudart-llama-bin-win-cuda-13*-x64.zip",
     ),
     required_files=(
-        "llama-completion.exe",
-        "llama-mtmd-cli.exe",
+        "llama-cli.exe",
         "ggml-cuda.dll",
         "cudart64_13.dll",
     ),
@@ -101,11 +97,10 @@ def _find_file(install_dir: Path, name: str) -> Path | None:
 
 
 def _find_cli_paths(install_dir: Path, spec: PlatformSpec) -> LlamaCliPaths | None:
-    text = _find_file(install_dir, spec.text_executable)
-    multimodal = _find_file(install_dir, spec.multimodal_executable)
-    if text is None or multimodal is None:
+    cli = _find_file(install_dir, spec.cli_executable)
+    if cli is None:
         return None
-    return LlamaCliPaths(text=text, multimodal=multimodal)
+    return LlamaCliPaths(cli=cli)
 
 
 def _has_required_files(install_dir: Path, spec: PlatformSpec) -> bool:
