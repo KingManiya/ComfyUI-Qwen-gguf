@@ -8,6 +8,8 @@ translation, captioning, extraction, and other text processing tasks inside
 ComfyUI. It discovers local GGUF models from `ComfyUI/models/LLM`, and it can
 also accept an image for multimodal models that use an external `mmproj`.
 
+![Node UI](https://raw.githubusercontent.com/KingManiya/ComfyUI-LLM-text-processor/refs/heads/images/images/node.png)
+
 ## Features
 
 - Text generation and text transformation with local GGUF models
@@ -62,6 +64,9 @@ LLM Text Processor -> LLM Text Processor
 ```
 
 No extra setup is needed for basic use.
+
+### Example workflow
+![Workflow](https://raw.githubusercontent.com/KingManiya/ComfyUI-LLM-text-processor/refs/heads/images/images/flow.png)
 
 ## llama.cpp
 
