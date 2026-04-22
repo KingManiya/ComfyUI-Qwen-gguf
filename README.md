@@ -19,6 +19,7 @@ also accept an image for multimodal models that use an external `mmproj`.
 - Recursive model discovery from `ComfyUI/models/LLM`
 - Automatic llama.cpp setup on supported Windows systems
 - Advanced llama.cpp options for users who need them
+- Optional `enable_processing` toggle for switching between node processing and direct passthrough
 
 ## Supported Model Families
 
@@ -214,15 +215,16 @@ Reference: [gpt-oss docs](https://github.com/openai/gpt-oss)
 | `timeout_seconds` | Maximum runtime before generation is stopped. |
 | `reasoning` | Reasoning output mode: `auto`, `on`, or `off`. |
 | `image` | Optional ComfyUI image input. Uses the first image in a batch. |
+| `enable_processing` | When enabled, the node runs normally. When disabled, the node forwards `prompt` directly to `RESPONSE` and skips all model checks and llama.cpp execution. |
 | `extra_args` | Optional advanced llama.cpp parameters. Leave empty for normal use. |
 
 ## Node Outputs
 
 | Output | Description |
 | --- | --- |
-| `RESPONSE` | Final model response with reasoning blocks removed. |
-| `REASONING` | Extracted reasoning when present in model output. |
-| `PERF` | Prompt and generation speed reported by llama.cpp. |
+| `RESPONSE` | Final model response with reasoning blocks removed, or the input `prompt` when `enable_processing` is disabled. |
+| `REASONING` | Extracted reasoning when present in model output. Empty when `enable_processing` is disabled. |
+| `PERF` | Prompt and generation speed reported by llama.cpp. Empty when `enable_processing` is disabled. |
 
 ## Troubleshooting
 

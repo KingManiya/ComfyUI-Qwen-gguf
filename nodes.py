@@ -123,6 +123,11 @@ class LLMTextProcessor:
                 "image": ("IMAGE", {
                     "tooltip": "Optional ComfyUI image input. Uses the first image in the batch.",
                 }),
+                "enable_processing": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "When enabled, run normal node processing. When disabled, forward the input prompt directly as RESPONSE.",
+                    "advanced": True,
+                }),
                 "extra_args": ("STRING", {
                     "default": "",
                     "multiline": False,
@@ -161,8 +166,12 @@ class LLMTextProcessor:
         timeout_seconds: int,
         reasoning: str,
         image=None,
+        enable_processing: bool = True,
         extra_args: str = "",
     ):
+        if not enable_processing:
+            return (prompt, "", "")
+
         model_path = full_model_path(model)
         mmproj_path = full_mmproj_path(mmproj)
         system_prompt_path = full_system_prompt_path(system_prompt)
