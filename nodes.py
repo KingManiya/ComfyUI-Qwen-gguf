@@ -27,7 +27,7 @@ class LLMTextProcessor:
                 }),
                 "mmproj": (mmproj_options(), {
                     "default": NO_MMPROJ,
-                    "tooltip": "Vision projector GGUF. Required when an image is connected.",
+                    "tooltip": "Vision projector GGUF. Required when one or more images are connected.",
                 }),
                 "system_prompt": (system_prompt_options(), {
                     "tooltip": "System prompt preset from ComfyUI/models/LLM/prompts, or none.",
@@ -74,9 +74,9 @@ class LLMTextProcessor:
                 "ctx_size": ("INT", {
                     "default": 8192,
                     "min": 512,
-                    "max": 131072,
+                    "max": 1048576,
                     "step": 512,
-                    "tooltip": "Context window size in tokens.",
+                    "tooltip": "Context window size in tokens. Use a value supported by the selected GGUF; larger context uses more VRAM.",
                 }),
                 "memory_mode": ([
                     "auto",
@@ -121,7 +121,7 @@ class LLMTextProcessor:
             },
             "optional": {
                 "image": ("IMAGE", {
-                    "tooltip": "Optional ComfyUI image input. Uses the first image in the batch.",
+                    "tooltip": "Optional image input. A single image or ComfyUI batch is passed to llama.cpp.",
                 }),
                 "enable_processing": ("BOOLEAN", {
                     "default": True,

@@ -27,20 +27,23 @@ LLAMA_SEED_MODULUS = 2**32
 MAX_LLAMA_SEED = LLAMA_SEED_MODULUS - 1
 
 
-def tensor_to_temp_png(image) -> Path:
+def _tensor_to_temp_png(tensor) -> Path:
     import numpy as np
     from PIL import Image
 
-    # ComfyUI IMAGE is normally B,H,W,C. The node uses the first batch item in v1.
-    tensor = image
-    if hasattr(tensor, "dim") and tensor.dim() == 4:
-        tensor = tensor[0]
     array = (tensor.detach().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
     pil_image = Image.fromarray(array)
     fd, path = tempfile.mkstemp(prefix="llm-text-processor-", suffix=".png")
     os.close(fd)
     pil_image.save(path, format="PNG")
     return Path(path)
+
+
+def tensor_to_temp_pngs(image) -> list[Path]:
+    # ComfyUI IMAGE is normally B,H,W,C. Each batch item becomes one CLI image.
+    if hasattr(image, "dim") and image.dim() == 4:
+        return [_tensor_to_temp_png(tensor) for tensor in image]
+    return [_tensor_to_temp_png(image)]
 
 
 def _write_temp_text_file(prefix: str, text: str) -> Path:
@@ -92,12 +95,12 @@ def build_command(
 ) -> tuple[list[str], tuple[Path | None, ...]]:
     cleanup_paths = []
     cli_paths = ensure_llama_cli_paths()
-    image_path = None
+    image_paths = []
     if image is not None:
         if mmproj_path is None:
             raise ValueError("Image input requires a selected mmproj GGUF file.")
-        image_path = tensor_to_temp_png(image)
-        cleanup_paths.append(image_path)
+        image_paths = tensor_to_temp_pngs(image)
+        cleanup_paths.extend(image_paths)
 
     prompt_path = _write_prompt_file(prompt)
     cleanup_paths.append(prompt_path)
@@ -128,9 +131,9 @@ def build_command(
 
     command.extend(["-f", str(prompt_path)])
 
-    if image_path:
+    if image_paths:
         command.extend(["--mmproj", str(mmproj_path)])
-        command.extend(["--image", str(image_path)])
+        command.extend(["--image", ",".join(str(path) for path in image_paths)])
 
     if extra_args:
         command.extend(extra_args)
