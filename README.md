@@ -19,7 +19,7 @@ use an external `mmproj`.
 - Separate `RESPONSE` and `REASONING` outputs
 - System prompt presets from text files
 - Recursive model discovery from `ComfyUI/models/LLM`
-- Automatic llama.cpp setup on supported Windows systems
+- Automatic llama.cpp setup on supported Windows and Ubuntu systems
 - Download progress logs during automatic llama.cpp setup
 - Advanced llama.cpp options for users who need them
 - Optional `enable_processing` toggle for switching between node processing and direct passthrough
@@ -41,8 +41,7 @@ Notes:
 - For image workflows, choose a matching `mmproj` file from the same model
   family when the GGUF release provides one.
 - Gemma 4 text generation works well. Vision support depends on the specific
-  GGUF and `mmproj` release, and can be less reliable on some Windows CUDA
-  setups.
+  GGUF and `mmproj` release, and can be less reliable on some GPU backends.
 - In this node, `gpt-oss` is used as a text model through
   llama.cpp-compatible GGUF releases.
 
@@ -79,9 +78,25 @@ available on:
 
 ```text
 Windows x64 + CUDA 13
+Ubuntu x64 CPU
+Ubuntu x64 Vulkan
+Ubuntu x64 ROCm
+Ubuntu x64 OpenVINO
+Ubuntu arm64 CPU
 ```
 
-Other platforms require manual setup.
+Ubuntu uses the CPU runtime by default because it works on the widest range of
+systems. To choose a different Ubuntu x64 runtime, set this environment variable
+before starting ComfyUI:
+
+```bash
+export LLM_TEXT_PROCESSOR_LLAMA_BACKEND=vulkan
+```
+
+Supported Ubuntu x64 values are `cpu`, `vulkan`, `rocm`, and `openvino`.
+Ubuntu arm64 currently supports `cpu`.
+
+Other platforms require manual llama.cpp setup.
 
 The extension downloads llama.cpp only. It does not download model weights.
 
@@ -254,10 +269,18 @@ same model family as the selected GGUF model.
 ### llama.cpp setup fails
 
 Check your internet connection and GitHub access, then run the node again.
+On Ubuntu GPU backends, also check that the matching system runtime is
+installed and visible to the ComfyUI process:
+
+- `vulkan` requires a working Vulkan driver.
+- `rocm` requires a working ROCm runtime.
+- `openvino` requires the OpenVINO runtime expected by the llama.cpp release.
 
 ### Unsupported platform
 
-Automatic llama.cpp setup currently supports Windows x64 CUDA 13 only.
+Automatic llama.cpp setup currently supports Windows x64 CUDA 13 and Ubuntu
+Linux x64/arm64. On Ubuntu x64, set `LLM_TEXT_PROCESSOR_LLAMA_BACKEND` to
+`cpu`, `vulkan`, `rocm`, or `openvino`; if it is unset, `cpu` is used.
 
 ### Out of memory
 

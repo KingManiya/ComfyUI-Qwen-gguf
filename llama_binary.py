@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import platform
+import stat
+import tarfile
 import time
 import urllib.request
 import zipfile
@@ -15,6 +18,7 @@ LLAMA_CPP_RELEASE_TAG = "b8840"
 RELEASE_API_URL = f"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{LLAMA_CPP_RELEASE_TAG}"
 PACKAGE_ROOT = Path(__file__).resolve().parent
 VENDOR_ROOT = PACKAGE_ROOT / "vendor" / "llama.cpp"
+LLAMA_BACKEND_ENV = "LLM_TEXT_PROCESSOR_LLAMA_BACKEND"
 
 
 @dataclass(frozen=True)
@@ -44,15 +48,81 @@ WINDOWS_CUDA_13 = PlatformSpec(
     ),
 )
 
+UBUNTU_X64_CPU = PlatformSpec(
+    key="ubuntu-x64-cpu",
+    cli_executable="llama-cli",
+    asset_patterns=("llama-*-bin-ubuntu-x64.tar.gz",),
+    required_files=(
+        "llama-cli",
+        "libllama.so",
+        "libllama-common.so",
+        "libggml.so",
+        "libggml-base.so",
+    ),
+)
+
+UBUNTU_X64_VULKAN = PlatformSpec(
+    key="ubuntu-x64-vulkan",
+    cli_executable="llama-cli",
+    asset_patterns=("llama-*-bin-ubuntu-vulkan-x64.tar.gz",),
+    required_files=UBUNTU_X64_CPU.required_files + ("libggml-vulkan.so",),
+)
+
+UBUNTU_X64_ROCM = PlatformSpec(
+    key="ubuntu-x64-rocm",
+    cli_executable="llama-cli",
+    asset_patterns=("llama-*-bin-ubuntu-rocm-*-x64.tar.gz",),
+    required_files=UBUNTU_X64_CPU.required_files + ("libggml-hip.so",),
+)
+
+UBUNTU_X64_OPENVINO = PlatformSpec(
+    key="ubuntu-x64-openvino",
+    cli_executable="llama-cli",
+    asset_patterns=("llama-*-bin-ubuntu-openvino-*-x64.tar.gz",),
+    required_files=UBUNTU_X64_CPU.required_files + ("libggml-openvino.so",),
+)
+
+UBUNTU_ARM64_CPU = PlatformSpec(
+    key="ubuntu-arm64-cpu",
+    cli_executable="llama-cli",
+    asset_patterns=("llama-*-bin-ubuntu-arm64.tar.gz",),
+    required_files=UBUNTU_X64_CPU.required_files,
+)
+
+LINUX_X64_SPECS = {
+    "cpu": UBUNTU_X64_CPU,
+    "vulkan": UBUNTU_X64_VULKAN,
+    "rocm": UBUNTU_X64_ROCM,
+    "openvino": UBUNTU_X64_OPENVINO,
+}
+
 
 def _platform_spec() -> PlatformSpec:
     system = platform.system().lower()
     machine = platform.machine().lower()
     if system == "windows" and machine in {"amd64", "x86_64"}:
         return WINDOWS_CUDA_13
+    if system == "linux" and machine in {"amd64", "x86_64"}:
+        backend = os.environ.get(LLAMA_BACKEND_ENV, "cpu").strip().lower()
+        try:
+            return LINUX_X64_SPECS[backend]
+        except KeyError:
+            supported = ", ".join(sorted(LINUX_X64_SPECS))
+            raise RuntimeError(
+                f"Unsupported {LLAMA_BACKEND_ENV}={backend!r}. "
+                f"Supported Ubuntu x64 backends: {supported}."
+            ) from None
+    if system == "linux" and machine in {"aarch64", "arm64"}:
+        backend = os.environ.get(LLAMA_BACKEND_ENV, "cpu").strip().lower()
+        if backend == "cpu":
+            return UBUNTU_ARM64_CPU
+        raise RuntimeError(
+            f"Unsupported {LLAMA_BACKEND_ENV}={backend!r}. "
+            "Supported Ubuntu arm64 backends: cpu."
+        )
     raise RuntimeError(
-        "Automatic llama.cpp binary download currently supports Windows x64 CUDA 13 only. "
-        "Other platforms are intentionally isolated behind the platform mapping for future support."
+        "Automatic llama.cpp binary download currently supports Windows x64 CUDA 13 "
+        "and Ubuntu Linux x64/arm64. Other platforms require manual llama.cpp setup."
     )
 
 
@@ -159,7 +229,15 @@ def _find_cli_paths(install_dir: Path, spec: PlatformSpec) -> LlamaCliPaths | No
     cli = _find_file(install_dir, spec.cli_executable)
     if cli is None:
         return None
+    _ensure_executable(cli)
     return LlamaCliPaths(cli=cli)
+
+
+def _ensure_executable(path: Path) -> None:
+    if os.name == "nt":
+        return
+    mode = path.stat().st_mode
+    path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
 def _has_required_files(install_dir: Path, spec: PlatformSpec) -> bool:
@@ -182,6 +260,28 @@ def _existing_install(spec: PlatformSpec) -> LlamaCliPaths | None:
     return None
 
 
+def _safe_extract_tar(archive: tarfile.TarFile, install_dir: Path) -> None:
+    destination = install_dir.resolve()
+    for member in archive.getmembers():
+        member_path = (install_dir / member.name).resolve()
+        if member_path != destination and destination not in member_path.parents:
+            raise RuntimeError(f"Refusing to extract unsafe archive member: {member.name}")
+    archive.extractall(install_dir)
+
+
+def _extract_archive(archive_path: Path, install_dir: Path) -> None:
+    name = archive_path.name.lower()
+    if name.endswith(".zip"):
+        with zipfile.ZipFile(archive_path) as archive:
+            archive.extractall(install_dir)
+        return
+    if name.endswith((".tar.gz", ".tgz")):
+        with tarfile.open(archive_path, "r:gz") as archive:
+            _safe_extract_tar(archive, install_dir)
+        return
+    raise RuntimeError(f"Unsupported llama.cpp archive format: {archive_path.name}")
+
+
 def _extract_assets(assets: list[dict], install_dir: Path) -> None:
     with TemporaryDirectory(prefix="llm-text-processor-llama-download-") as temp:
         temp_dir = Path(temp)
@@ -189,8 +289,7 @@ def _extract_assets(assets: list[dict], install_dir: Path) -> None:
             archive_path = temp_dir / asset["name"]
             print(f"[LLM Text Processor] Downloading {asset['name']}...")
             _download(asset["browser_download_url"], archive_path)
-            with zipfile.ZipFile(archive_path) as archive:
-                archive.extractall(install_dir)
+            _extract_archive(archive_path, install_dir)
 
 
 def ensure_llama_cli_paths() -> LlamaCliPaths:
