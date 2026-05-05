@@ -156,6 +156,7 @@ def run_llama_cli(
             encoding="utf-8",
             errors="replace",
             shell=False,
+            start_new_session=True,
         )
         stdout, stderr = _communicate_with_interrupt(process, timeout_seconds)
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
@@ -218,16 +219,34 @@ def _parse_response(text: str) -> tuple[str, str, str]:
     perf_match = PERF_RE.search(text)
     perf = perf_match.group(0).strip() if perf_match else ""
     content = text[:perf_match.start()] if perf_match else text
-    content = content.strip()
-    if not content.startswith(START_THINKING):
+    content = _strip_llama_cli_terminal_output(content)
+
+    thinking_start = content.find(START_THINKING)
+    if thinking_start < 0:
         return content, "", perf
 
-    thinking_text = content[len(START_THINKING):]
+    thinking_text = content[thinking_start + len(START_THINKING):]
     if END_THINKING not in thinking_text:
-        return "", thinking_text.strip(), perf
+        return "", _strip_llama_cli_terminal_output(thinking_text), perf
 
     thinking, response = thinking_text.split(END_THINKING, 1)
-    return response.strip(), thinking.strip(), perf
+    return (
+        _strip_llama_cli_terminal_output(response),
+        _strip_llama_cli_terminal_output(thinking),
+        perf,
+    )
+
+
+def _strip_llama_cli_terminal_output(text: str) -> str:
+    text = str(text or "").replace("\b", "")
+    lines = text.splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop()
+    while lines and lines[-1].strip() == "Exiting...":
+        lines.pop()
+        while lines and not lines[-1].strip():
+            lines.pop()
+    return "\n".join(lines).strip()
 
 
 def _parse_llama_error(stderr: str) -> str:
