@@ -219,9 +219,9 @@ def _parse_response(text: str) -> tuple[str, str, str]:
     perf = perf_match.group(0).strip() if perf_match else ""
     content = text[:perf_match.start()] if perf_match else text
     content = content.strip()
-    # drop leaked llama.cpp loading-spinner artifacts (backspaces + \|/- glyphs) that
-    # some macOS builds emit to stderr before the real output
-    content = re.sub(r"^[\s\x00-\x1f|/\\-]+", "", content)
+    # drop leaked llama.cpp loading-spinner artifacts (typically backspaces + |/\\- spinner glyphs)
+    # that some macOS builds emit to stderr before the real output
+    content = re.sub(r"^(?:\x08+[|/\\-])+(?:\x08+)?", "", content).lstrip()
     if not content.startswith(START_THINKING):
         return content, "", perf
 
