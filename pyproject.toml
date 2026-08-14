@@ -6,7 +6,7 @@ license = {file = "LICENSE"}
 dependencies = ["numpy", "Pillow"]
 
 [project.urls]
-Repository = "https://github.com/KingManiya/ComfyUI-LLM-text-processor"
+Repository = "https://github.com/tues8557-source/ComfyUI-LLM-text-processor"
 
 [tool.comfy]
 PublisherId = "kingmaniya"

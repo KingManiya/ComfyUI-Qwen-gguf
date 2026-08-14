@@ -19,7 +19,7 @@ use an external `mmproj`.
 - Separate `RESPONSE` and `REASONING` outputs
 - System prompt presets from text files
 - Recursive model discovery from `ComfyUI/models/LLM`
-- Automatic llama.cpp setup on supported Windows systems
+- Automatic llama.cpp setup on supported Windows systems and Linux CUDA builds
 - Download progress logs during automatic llama.cpp setup
 - Advanced llama.cpp options for users who need them
 - Optional `enable_processing` toggle for switching between node processing and direct passthrough
@@ -58,7 +58,7 @@ Open ComfyUI Manager, choose `Install Custom Nodes`, search for
 Open a terminal in `ComfyUI/custom_nodes` and run:
 
 ```bash
-git clone https://github.com/KingManiya/ComfyUI-LLM-text-processor.git
+git clone https://github.com/tues8557-source/ComfyUI-LLM-text-processor.git
 ```
 
 Restart ComfyUI. The node appears under:
@@ -74,20 +74,89 @@ No extra setup is needed for basic use.
 
 ## llama.cpp
 
-The node uses official llama.cpp release binaries. Automatic setup is currently
-available on:
+The node runs `llama-cli`. It does not download model weights.
+
+On Windows, the node uses official llama.cpp release binaries. By default it
+uses the latest llama.cpp release so newly added model architectures are not
+held back by an old pinned tag. Set `LLAMA_CPP_RELEASE_TAG` if you need to pin a
+specific release.
+
+Automatic Windows binary setup is available on:
 
 ```text
 Windows x64 + CUDA 13
 ```
 
-Other platforms require manual setup.
+On Linux, the node looks for `llama-cli` in this order:
 
-The extension downloads llama.cpp only. It does not download model weights.
+1. `LLAMA_CPP_PATH`
+2. Existing local builds under this extension's `vendor/llama.cpp` directory
+3. `llama-cli` on `PATH`
+4. Automatic CUDA source build with `GGML_CUDA=ON`
 
 During automatic setup, the console shows download progress, total size when
 available, and current download speed so slow connections do not look like a
 freeze.
+
+### RunPod / Linux NVIDIA Setup
+
+RunPod users can clone this node normally into `ComfyUI/custom_nodes`:
+
+```bash
+cd /workspace/ComfyUI/custom_nodes
+git clone https://github.com/tues8557-source/ComfyUI-LLM-text-processor.git
+```
+
+Then restart ComfyUI and run the node once. On Linux, if no usable `llama-cli`
+is found, the extension clones llama.cpp and builds:
+
+```bash
+cmake -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build ... --target llama-cli
+```
+
+The first build can take several minutes. The resulting binary is reused on
+later runs.
+
+If you already built llama.cpp yourself, point the node to it before launching
+ComfyUI:
+
+```bash
+export LLAMA_CPP_PATH=/workspace/llama.cpp/build/bin/llama-cli
+```
+
+`LLAMA_CPP_PATH` may point either to the `llama-cli` executable or to a build
+directory containing it.
+
+Advanced Linux build overrides:
+
+```bash
+export LLAMA_CPP_REPO=https://github.com/ggml-org/llama.cpp.git
+export LLAMA_CPP_REF=master
+```
+
+Use `LLAMA_CPP_REF` to pin a known-good branch, tag, or commit. Leaving it on
+`master` is recommended when you need very new architectures such as
+Muse-Glimmer.
+
+### RTX 5090 Notes
+
+RTX 5090 is a Blackwell GPU. Use a RunPod image with a recent NVIDIA driver and
+CUDA toolkit, preferably CUDA 12.8 or newer. Older CUDA images may build
+llama.cpp successfully but fail to use the GPU correctly.
+
+For large models such as `Muse-Glimmer-30B-Heretic-Q5_K_M.gguf`, start with:
+
+```text
+memory_mode = gpu_layers
+n_gpu_layers = 99
+ctx_size = 8192 or 16384
+```
+
+If you see `unknown model architecture: muse-glimmer`, your `llama-cli` is too
+old. Remove the extension's `vendor/llama.cpp/source` and
+`vendor/llama.cpp/build/linux-cuda` directories, or set `LLAMA_CPP_PATH` to a
+fresh llama.cpp build.
 
 ## Model Placement
 
