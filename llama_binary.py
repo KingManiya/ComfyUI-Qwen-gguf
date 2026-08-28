@@ -44,12 +44,25 @@ WINDOWS_CUDA_13 = PlatformSpec(
     ),
 )
 
+MACOS_ARM64 = PlatformSpec(
+    key="macos-arm64",
+    cli_executable="llama-cli",
+    asset_patterns=(
+        "llama-*-bin-macos-arm64.tar.gz",
+    ),
+    required_files=(
+        "llama-cli",
+    ),
+)
+
 
 def _platform_spec() -> PlatformSpec:
     system = platform.system().lower()
     machine = platform.machine().lower()
     if system == "windows" and machine in {"amd64", "x86_64"}:
         return WINDOWS_CUDA_13
+    if system == "darwin" and machine in {"arm64", "aarch64"}:
+        return MACOS_ARM64
     raise RuntimeError(
         "Automatic llama.cpp binary download currently supports Windows x64 CUDA 13 only. "
         "Other platforms are intentionally isolated behind the platform mapping for future support."
@@ -185,8 +198,13 @@ def _extract_assets(assets: list[dict], install_dir: Path) -> None:
             archive_path = temp_dir / asset["name"]
             print(f"[LLM Text Processor] Downloading {asset['name']}...")
             _download(asset["browser_download_url"], archive_path)
-            with zipfile.ZipFile(archive_path) as archive:
-                archive.extractall(install_dir)
+            if asset["name"].endswith((".tar.gz", ".tgz")):
+                import tarfile
+                with tarfile.open(archive_path) as archive:
+                    archive.extractall(install_dir)
+            else:
+                with zipfile.ZipFile(archive_path) as archive:
+                    archive.extractall(install_dir)
 
 
 def ensure_llama_cli_paths() -> LlamaCliPaths:
